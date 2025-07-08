@@ -4,12 +4,13 @@ import React, { useState, useMemo } from 'react';
 import { Header } from '@/components/Header';
 import { ChecklistPanel } from '@/components/ChecklistPanel';
 import { DocumentViewer } from '@/components/DocumentViewer';
-import { initialDocText, initialIssues, type Issue } from '@/lib/sow-data';
+import { initialDocText, type Issue } from '@/lib/sow-data';
 import { useToast } from '@/hooks/use-toast';
+import { analyzeSowDocument } from '@/ai/flows/analyze-sow-document';
 
 export function SOWiseApp() {
   const [docText, setDocText] = useState(initialDocText);
-  const [issues, setIssues] = useState<Issue[]>(initialIssues);
+  const [issues, setIssues] = useState<Issue[]>([]);
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const { toast } = useToast();
@@ -40,7 +41,7 @@ export function SOWiseApp() {
           setDocText(result.value);
           toast({
             title: 'File Uploaded',
-            description: `Successfully processed "${file.name}".`,
+            description: `Successfully processed "${file.name}". Ready to scan.`,
           });
         } catch (error) {
           console.error('Error parsing document:', error);
@@ -49,7 +50,7 @@ export function SOWiseApp() {
             description: 'Could not read the document content.',
             variant: 'destructive',
           });
-          setDocText(''); // Clear on error
+          setDocText(initialDocText); // Reset on error
         }
       }
     };
@@ -60,7 +61,7 @@ export function SOWiseApp() {
             description: 'There was an error reading the file.',
             variant: 'destructive',
         });
-        setDocText(''); // Clear on error
+        setDocText(initialDocText); // Reset on error
     };
     reader.readAsArrayBuffer(file);
   };
@@ -69,21 +70,51 @@ export function SOWiseApp() {
     setSelectedIssueId(prevId => (prevId === issueId ? null : issueId));
   };
 
-  const handleScan = () => {
+  const handleScan = async () => {
+    if (!docText || docText === initialDocText || docText.includes('Loading document')) {
+      toast({
+        title: 'No Document to Scan',
+        description: 'Please upload a document first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsScanning(true);
+    setIssues([]);
+    setSelectedIssueId(null);
     toast({
       title: 'Scanning Document...',
-      description: 'Analyzing for compliance and formatting issues.',
+      description: 'AI is analyzing your document. This may take a moment.',
     });
-    // Simulate network delay and analysis
-    setTimeout(() => {
-      setIssues(initialIssues); // Resets to initial findings
-      setIsScanning(false);
+    
+    try {
+      const results = await analyzeSowDocument({ sowDocument: docText });
+      
+      if (results && results.length > 0) {
+        setIssues(results);
+        const failedCount = results.filter(i => i.status === 'failed').length;
+        toast({
+          title: 'Scan Complete',
+          description: `${failedCount} issue${failedCount !== 1 ? 's' : ''} found.`,
+        });
+      } else {
+        toast({
+          title: 'Scan Complete',
+          description: 'No issues found, or the AI could not process the document.',
+        });
+        setIssues([]); // Ensure issues are cleared if no results
+      }
+    } catch (error) {
+      console.error('Error scanning document:', error);
       toast({
-        title: 'Scan Complete',
-        description: `${issues.filter(i => i.status === 'failed').length} issues found.`,
+        title: 'Scan Failed',
+        description: 'An error occurred while analyzing the document. Please try again.',
+        variant: 'destructive',
       });
-    }, 1500);
+    } finally {
+      setIsScanning(false);
+    }
   };
   
   const handleAddPrompt = (prompt: string) => {
