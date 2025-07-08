@@ -18,6 +18,7 @@ interface ChecklistPanelProps {
   onScan: () => void;
   isScanning: boolean;
   onAddPrompt: (prompt: string) => void;
+  isAddingPrompt: boolean;
 }
 
 export function ChecklistPanel({
@@ -28,11 +29,13 @@ export function ChecklistPanel({
   onScan,
   isScanning,
   onAddPrompt,
+  isAddingPrompt,
 }: ChecklistPanelProps) {
   const [customPrompt, setCustomPrompt] = useState('');
 
   const handleAddPrompt = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!customPrompt || isAddingPrompt) return;
     onAddPrompt(customPrompt);
     setCustomPrompt('');
   };
@@ -47,9 +50,14 @@ export function ChecklistPanel({
             placeholder="Add custom prompt..." 
             value={customPrompt}
             onChange={(e) => setCustomPrompt(e.target.value)}
+            disabled={isAddingPrompt}
           />
-          <Button type="submit" size="icon" variant="ghost">
-            <PlusCircle className="w-5 h-5" />
+          <Button type="submit" size="icon" variant="ghost" disabled={isAddingPrompt || !customPrompt}>
+            {isAddingPrompt ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <PlusCircle className="w-5 h-5" />
+            )}
           </Button>
         </form>
         <Button onClick={onScan} disabled={isScanning} className="w-full">

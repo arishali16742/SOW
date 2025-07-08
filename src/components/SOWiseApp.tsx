@@ -7,12 +7,14 @@ import { DocumentViewer } from '@/components/DocumentViewer';
 import { initialDocText, type Issue } from '@/lib/sow-data';
 import { useToast } from '@/hooks/use-toast';
 import { analyzeSowDocument } from '@/ai/flows/analyze-sow-document';
+import { analyzeCustomPrompt } from '@/ai/flows/analyze-custom-prompt';
 
 export function SOWiseApp() {
   const [docText, setDocText] = useState(initialDocText);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [isAddingPrompt, setIsAddingPrompt] = useState(false);
   const { toast } = useToast();
 
   const handleFileUpload = (file: File) => {
@@ -117,20 +119,54 @@ export function SOWiseApp() {
     }
   };
   
-  const handleAddPrompt = (prompt: string) => {
-    if (!prompt) return;
-    const newIssue: Issue = {
-      id: `custom-${Date.now()}`,
-      title: prompt,
-      status: 'failed', // Assume custom prompts find issues
-      description: `Custom check for: "${prompt}"`,
-      relevantText: 'This document is a DRAFT.', // Placeholder relevant text
-    };
-    setIssues(prev => [newIssue, ...prev]);
+  const handleAddPrompt = async (prompt: string) => {
+    if (!prompt || isAddingPrompt) return;
+
+    if (!docText || docText === initialDocText || docText.includes('Loading document')) {
+      toast({
+        title: 'No Document to Analyze',
+        description: 'Please upload a document before adding a custom prompt.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setIsAddingPrompt(true);
     toast({
-      title: 'Custom Prompt Added',
-      description: 'The new check has been added to the list.',
+      title: 'Analyzing Custom Prompt...',
+      description: 'The AI is checking your custom rule.',
     });
+
+    try {
+      const result = await analyzeCustomPrompt({
+        sowDocument: docText,
+        customPrompt: prompt,
+      });
+
+      const newIssue: Issue = {
+        id: `custom-${Date.now()}`,
+        title: prompt, // Use the original prompt as the title
+        status: result.status,
+        description: result.description,
+        relevantText: result.relevantText,
+      };
+
+      setIssues(prev => [newIssue, ...prev]);
+      toast({
+        title: 'Custom Check Complete',
+        description: `Result: ${result.status.charAt(0).toUpperCase() + result.status.slice(1)}`,
+      });
+
+    } catch (error) {
+      console.error('Error with custom prompt:', error);
+      toast({
+        title: 'Custom Prompt Failed',
+        description: 'An error occurred while analyzing the custom prompt.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsAddingPrompt(false);
+    }
   };
 
   const selectedIssue = useMemo(
@@ -150,6 +186,7 @@ export function SOWiseApp() {
           onScan={handleScan}
           isScanning={isScanning}
           onAddPrompt={handleAddPrompt}
+          isAddingPrompt={isAddingPrompt}
         />
         <DocumentViewer docText={docText} selectedIssue={selectedIssue} />
       </main>
