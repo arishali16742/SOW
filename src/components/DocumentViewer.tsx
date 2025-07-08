@@ -49,7 +49,7 @@ export function DocumentViewer({ docText, selectedIssue }: DocumentViewerProps) 
     <div className="flex-1 h-full bg-white text-gray-800">
       <ScrollArea className="h-full">
         <div
-          className="p-8 prose prose-sm max-w-none font-serif leading-relaxed"
+          className="p-8 prose prose-sm max-w-none"
           dangerouslySetInnerHTML={createHighlightedHtml()}
         />
       </ScrollArea>
