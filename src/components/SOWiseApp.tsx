@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import mammoth from 'mammoth';
 import { Header } from '@/components/Header';
 import { ChecklistPanel } from '@/components/ChecklistPanel';
 import { DocumentViewer } from '@/components/DocumentViewer';
@@ -36,6 +35,7 @@ export function SOWiseApp() {
       const arrayBuffer = e.target?.result as ArrayBuffer;
       if (arrayBuffer) {
         try {
+          const { default: mammoth } = await import('mammoth');
           const result = await mammoth.convertToHtml({ arrayBuffer });
           setDocText(result.value);
           toast({

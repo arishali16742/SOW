@@ -23,7 +23,7 @@ export function DocumentViewer({ docText, selectedIssue }: DocumentViewerProps) 
   }, [selectedIssue]);
 
   const createHighlightedHtml = () => {
-    let textForDisplay = docText.replace(/\n/g, '<br />');
+    let textForDisplay = docText;
 
     const highlightText = selectedIssue?.relevantText;
     if (highlightText && selectedIssue.status === 'failed') {
