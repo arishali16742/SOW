@@ -1,3 +1,5 @@
+import { SOWiseApp } from '@/components/SOWiseApp';
+
 export default function Home() {
-  return <></>;
+  return <SOWiseApp />;
 }
