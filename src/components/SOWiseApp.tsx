@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import mammoth from 'mammoth';
 import { Header } from '@/components/Header';
 import { ChecklistPanel } from '@/components/ChecklistPanel';
 import { DocumentViewer } from '@/components/DocumentViewer';
@@ -15,15 +16,53 @@ export function SOWiseApp() {
   const { toast } = useToast();
 
   const handleFileUpload = (file: File) => {
-    // In a real app, you'd parse the .docx file here.
-    // For this demo, we'll just reset to the initial state as if a new file was uploaded.
-    toast({
-      title: 'File "Uploaded"',
-      description: `"${file.name}" processed. Displaying mock data.`,
-    });
-    setDocText(initialDocText);
-    setIssues(initialIssues);
+    if (!file) return;
+
+    if (!file.name.endsWith('.docx')) {
+      toast({
+        title: 'Invalid File Type',
+        description: 'Please upload a .docx file.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setDocText('<h2>Loading document...</h2>');
+    setIssues([]);
     setSelectedIssueId(null);
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const arrayBuffer = e.target?.result as ArrayBuffer;
+      if (arrayBuffer) {
+        try {
+          const result = await mammoth.convertToHtml({ arrayBuffer });
+          setDocText(result.value);
+          toast({
+            title: 'File Uploaded',
+            description: `Successfully processed "${file.name}".`,
+          });
+        } catch (error) {
+          console.error('Error parsing document:', error);
+          toast({
+            title: 'Error processing file',
+            description: 'Could not read the document content.',
+            variant: 'destructive',
+          });
+          setDocText(''); // Clear on error
+        }
+      }
+    };
+    reader.onerror = (error) => {
+        console.error('File read error:', error);
+        toast({
+            title: 'File Read Error',
+            description: 'There was an error reading the file.',
+            variant: 'destructive',
+        });
+        setDocText(''); // Clear on error
+    };
+    reader.readAsArrayBuffer(file);
   };
 
   const handleSelectIssue = (issueId: string) => {

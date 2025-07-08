@@ -50,7 +50,7 @@ export function Header({ onUpload }: HeaderProps) {
           ref={fileInputRef}
           onChange={handleFileChange}
           className="hidden"
-          accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         />
 
         <DropdownMenu>
