@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { ChecklistPanel } from '@/components/ChecklistPanel';
 import { DocumentViewer } from '@/components/DocumentViewer';
-import { initialDocText, type Issue } from '@/lib/sow-data';
+import { initialDocText, type Issue, type AnalysisResult } from '@/lib/sow-data';
 import { useToast } from '@/hooks/use-toast';
 import { analyzeSowDocument } from '@/ai/flows/analyze-sow-document';
 import { analyzeCustomPrompt } from '@/ai/flows/analyze-custom-prompt';
@@ -119,6 +119,25 @@ export function SOWiseApp() {
           title: 'Scan Complete',
           description: `${failedCount} issue${failedCount !== 1 ? 's' : ''} found.`,
         });
+
+        // Save results to localStorage
+        const totalChecks = results.length;
+        const compliance = totalChecks > 0 ? ((totalChecks - failedCount) / totalChecks) * 100 : 100;
+
+        const newResult: AnalysisResult = {
+          id: `scan-${Date.now()}`,
+          fileName: fileName || 'Untitled Document',
+          date: new Date().toISOString(),
+          issues: results,
+          compliance: Math.round(compliance),
+          failedCount,
+          totalChecks,
+        };
+
+        const history: AnalysisResult[] = JSON.parse(localStorage.getItem('sowise_analysis_history') || '[]');
+        history.unshift(newResult);
+        localStorage.setItem('sowise_analysis_history', JSON.stringify(history.slice(0, 20))); // Store latest 20 results
+
       } else {
         toast({
           title: 'Scan Complete',
@@ -194,7 +213,7 @@ export function SOWiseApp() {
   );
 
   return (
-    <div className="flex flex-col h-full bg-background font-body text-foreground overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden font-body text-foreground bg-background">
         <header className="flex items-center justify-between p-4 border-b bg-card">
             <div>
                 <h2 className="text-xl font-bold">Upload Document</h2>
