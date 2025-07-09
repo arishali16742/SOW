@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Header } from '@/components/Header';
 import { ChecklistPanel } from '@/components/ChecklistPanel';
 import { DocumentViewer } from '@/components/DocumentViewer';
 import { initialDocText, type Issue } from '@/lib/sow-data';
 import { useToast } from '@/hooks/use-toast';
 import { analyzeSowDocument } from '@/ai/flows/analyze-sow-document';
 import { analyzeCustomPrompt } from '@/ai/flows/analyze-custom-prompt';
+import { Button } from './ui/button';
+import { Upload } from 'lucide-react';
 
 export function SOWiseApp() {
   const [docText, setDocText] = useState(initialDocText);
@@ -15,7 +16,13 @@ export function SOWiseApp() {
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [isAddingPrompt, setIsAddingPrompt] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
   const { toast } = useToast();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
 
   const handleFileUpload = (file: File) => {
     if (!file) return;
@@ -32,6 +39,7 @@ export function SOWiseApp() {
     setDocText('<h2>Loading document...</h2>');
     setIssues([]);
     setSelectedIssueId(null);
+    setFileName(file.name);
 
     const reader = new FileReader();
     reader.onload = async (e) => {
@@ -66,6 +74,17 @@ export function SOWiseApp() {
         setDocText(initialDocText); // Reset on error
     };
     reader.readAsArrayBuffer(file);
+  };
+  
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      handleFileUpload(file);
+    }
+    // Reset file input value to allow re-uploading the same file
+    if(event.target) {
+        event.target.value = '';
+    }
   };
 
   const handleSelectIssue = (issueId: string) => {
@@ -175,21 +194,37 @@ export function SOWiseApp() {
   );
 
   return (
-    <div className="flex flex-col h-screen bg-background font-body text-foreground overflow-hidden">
-      <Header onUpload={handleFileUpload} />
-      <main className="flex flex-1 overflow-hidden transition-all duration-300">
-        <ChecklistPanel
-          issues={issues}
-          selectedIssueId={selectedIssueId}
-          onSelectIssue={handleSelectIssue}
-          docText={docText}
-          onScan={handleScan}
-          isScanning={isScanning}
-          onAddPrompt={handleAddPrompt}
-          isAddingPrompt={isAddingPrompt}
-        />
-        <DocumentViewer docText={docText} selectedIssue={selectedIssue} />
-      </main>
+    <div className="flex flex-col h-full bg-background font-body text-foreground overflow-hidden">
+        <header className="flex items-center justify-between p-4 border-b bg-card">
+            <div>
+                <h2 className="text-xl font-bold">Upload Document</h2>
+                <p className="text-sm text-muted-foreground">{fileName || 'No document uploaded'}</p>
+            </div>
+            <Button onClick={handleUploadClick}>
+                <Upload className="w-4 h-4 mr-2" />
+                Upload Document
+            </Button>
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            />
+        </header>
+        <main className="flex flex-1 overflow-hidden transition-all duration-300">
+            <ChecklistPanel
+            issues={issues}
+            selectedIssueId={selectedIssueId}
+            onSelectIssue={handleSelectIssue}
+            docText={docText}
+            onScan={handleScan}
+            isScanning={isScanning}
+            onAddPrompt={handleAddPrompt}
+            isAddingPrompt={isAddingPrompt}
+            />
+            <DocumentViewer docText={docText} selectedIssue={selectedIssue} />
+        </main>
     </div>
   );
 }
