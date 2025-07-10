@@ -48,21 +48,98 @@ export function SOWiseApp() {
         try {
           const { default: mammoth } = await import('mammoth');
           const mammothOptions = {
-             styleMap: [
-                "p[style-name='Highlight'] => mark.highlight-gray:fresh",
-                "r[style-name='Highlight'] => mark.highlight-gray:fresh",
-                "b => strong",
-                "i => em",
-                "u => u",
-                "strike => s",
-                "p[style-name='Heading 1'] => h1:fresh",
-                "p[style-name='Heading 2'] => h2:fresh",
-                "p[style-name='Heading 3'] => h3:fresh",
-                "p[style-name='Heading 4'] => h4:fresh",
-                "p[style-name='Title'] => h1:fresh",
-                "p[style-name='Subtitle'] => h2:fresh",
-                "p[style-name='Code Block'] => pre:fresh",
-             ]
+            styleMap: [
+              "b => strong",
+              "i => em",
+              "u => u",
+              "strike => s",
+              "p[style-name='Heading 1'] => h1:fresh",
+              "p[style-name='Heading 2'] => h2:fresh",
+              "p[style-name='Heading 3'] => h3:fresh",
+              "p[style-name='Heading 4'] => h4:fresh",
+              "p[style-name='Title'] => h1:fresh",
+              "p[style-name='Subtitle'] => h2:fresh",
+              "p[style-name='Code Block'] => pre:fresh",
+            ],
+            convertImage: mammoth.images.inline(function(element) {
+                return element.read("base64").then(function(imageBuffer) {
+                    return {
+                        src: "data:" + element.contentType + ";base64," + imageBuffer
+                    };
+                });
+            }),
+            transformDocument: mammoth.transforms.paragraph(function(paragraph) {
+              const newChildren = paragraph.children.flatMap(function(child) {
+                if (child.type === 'run' && child.shd && (child.shd.fill === 'auto' || child.shd.fill === 'F2F2F2')) { // 'auto' or light gray
+                  return [new mammoth.transforms.elements.Run({
+                    ...child,
+                    children: [new mammoth.transforms.elements.Run({
+                      children: child.children,
+                      isBold: child.isBold,
+                      isItalic: child.isItalic,
+                      isUnderline: child.isUnderline,
+                      isStrikethrough: child.isStrikethrough,
+                      html: `<mark class="highlight-gray">${child.children.map(c => c.value).join('')}</mark>`,
+                    })]
+                  })];
+                }
+                return [child];
+              });
+              
+              // This part is a bit tricky, we need to manually reconstruct HTML for runs to wrap them in a mark
+              const modifiedParagraph = {...paragraph, children: newChildren};
+              
+              const runs = modifiedParagraph.children.map(runOrTab => {
+                  if (runOrTab.type === 'run' && runOrTab.html) {
+                      return runOrTab.html;
+                  }
+                  if (runOrTab.type === 'run') {
+                      let text = runOrTab.children.map(c => c.value).join('');
+                      if (runOrTab.isBold) text = `<strong>${text}</strong>`;
+                      if (runOrTab.isItalic) text = `<em>${text}</em>`;
+                      if (runOrTab.isUnderline) text = `<u>${text}</u>`;
+                      if (runOrTab.isStrikethrough) text = `<s>${text}</s>`;
+                      return text;
+                  }
+                  if(runOrTab.type === 'tab') {
+                    return `\t`;
+                  }
+                  return '';
+              }).join('');
+
+              if (newChildren.some(child => child.type === 'run' && child.shd && (child.shd.fill === 'auto' || child.shd.fill === 'F2F2F2'))) {
+                 // A bit of a hack: mammoth doesn't easily support wrapping runs.
+                 // We detect a highlight and then rebuild the paragraph content manually.
+                 // This is a simplified version and might not cover all formatting inside the highlighted run.
+                 // We will find a run, check for highlight, and wrap its text content with <mark>.
+                 const newHtml = paragraph.children.map(child => {
+                    if (child.type === 'run') {
+                        let text = child.children.map(c=>c.value).join('');
+                        if (child.isBold) text = `<strong>${text}</strong>`;
+                        if (child.isItalic) text = `<em>${text}</em>`;
+                        
+                        if(child.shd && (child.shd.fill.toLowerCase() === 'auto' || child.shd.fill.toLowerCase() === 'f2f2f2')) {
+                            return `<mark class="highlight-gray">${text}</mark>`;
+                        }
+                        return text;
+                    }
+                    return '';
+                 }).join('');
+
+                 if (paragraph.styleId && paragraph.styleId.startsWith('heading')) {
+                   const level = paragraph.styleId.split('heading')[1];
+                   return new mammoth.transforms.elements.Element('html', {
+                     html: `<h${level}>${newHtml}</h${level}>`
+                   });
+                 }
+
+                 return new mammoth.transforms.elements.Element('html', {
+                   html: `<p>${newHtml}</p>`
+                 });
+              }
+
+              return paragraph;
+            })
           };
 
           const result = await mammoth.convertToHtml({ arrayBuffer }, mammothOptions);
