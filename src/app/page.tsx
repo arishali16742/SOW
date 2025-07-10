@@ -57,7 +57,13 @@ export default function DashboardPage() {
     const years = [...new Set(fullHistory.map(item => getYear(new Date(item.date))))].sort((a,b) => b-a);
     const quarters = [1, 2, 3, 4];
     const months = [...Array(12).keys()];
-    const weeks = [...new Set(fullHistory.map(item => getWeek(new Date(item.date), { weekStartsOn: 1 })))].sort((a,b) => b-a); // Most recent week first
+    
+    // Get unique weeks from the current year, sorted most recent first
+    const currentYearWeeks = fullHistory
+      .filter(item => getYear(new Date(item.date)) === new Date().getFullYear())
+      .map(item => getWeek(new Date(item.date), { weekStartsOn: 1 }));
+    const weeks = [...new Set(currentYearWeeks)].sort((a,b) => b-a);
+    
     return { years, quarters, months, weeks };
   }, [fullHistory]);
 
@@ -67,7 +73,6 @@ export default function DashboardPage() {
     if (storedHistory) {
       const parsedHistory: AnalysisResult[] = JSON.parse(storedHistory);
       setFullHistory(parsedHistory);
-      setFilteredHistory(parsedHistory); // Initially, show all data
     }
     setIsLoading(false);
   }, []);
@@ -84,20 +89,22 @@ export default function DashboardPage() {
         const valueNum = parseInt(filterValue, 10);
         newFilteredHistory = fullHistory.filter(item => {
             const date = new Date(item.date);
-            const currentYear = new Date().getFullYear(); // Use current year as default for month/quarter/week filters
+            const currentYear = new Date().getFullYear(); 
             
             if (filterType === 'year') return getYear(date) === valueNum;
+            // For Quarter, Month, Week, filter by value within the current year
             if (filterType === 'quarter') return getYear(date) === currentYear && getQuarter(date) === valueNum;
             if (filterType === 'month') return getYear(date) === currentYear && getMonth(date) === valueNum;
             if (filterType === 'week') return getYear(date) === currentYear && getWeek(date, { weekStartsOn: 1 }) === valueNum;
             return true;
         });
     } else {
-      // If 'all' is selected for a filter type, filter by the type for the current year
+      // If 'all' is selected for a specific filter type, show all data for that type (e.g., all data for all years)
+      // or all data for the current year for time-boxed filters.
       newFilteredHistory = fullHistory.filter(item => {
         const date = new Date(item.date);
         const currentYear = new Date().getFullYear();
-        if (filterType === 'year') return true; // 'all' years
+        if (filterType === 'year') return true; // 'all' years means show everything
         if (filterType === 'quarter') return getYear(date) === currentYear;
         if (filterType === 'month') return getYear(date) === currentYear;
         if (filterType === 'week') return getYear(date) === currentYear;
@@ -109,42 +116,58 @@ export default function DashboardPage() {
   }, [filterType, filterValue, fullHistory]);
 
   useEffect(() => {
-    if (filteredHistory.length >= 0) {
-      const totalDocuments = filteredHistory.length;
-      const totalIssues = filteredHistory.reduce(
-        (acc, doc) => acc + doc.failedCount,
-        0
-      );
-      const totalCompliance = filteredHistory.reduce(
-        (acc, doc) => acc + doc.compliance,
-        0
-      );
-      
-      const avgCompliance =
-        totalDocuments > 0 ? Math.round(totalCompliance / totalDocuments) : 0;
-      const avgIssues = totalDocuments > 0 ? parseFloat((totalIssues / totalDocuments).toFixed(1)) : 0;
+    if (fullHistory.length > 0 && !isLoading) {
+        let historyToProcess = filteredHistory;
+        // When the component first loads, filteredHistory might not be set yet, but fullHistory is.
+        // Also if filter is 'all', filteredHistory will be the same as fullHistory.
+        if (filteredHistory.length === 0 && filterType === 'all') {
+            historyToProcess = fullHistory;
+        }
 
-      setStats({
-        totalDocuments,
-        avgCompliance,
-        avgIssues,
-        totalIssues,
-      });
+        const totalDocuments = historyToProcess.length;
+        const totalIssues = historyToProcess.reduce(
+            (acc, doc) => acc + doc.failedCount,
+            0
+        );
+        const totalCompliance = historyToProcess.reduce(
+            (acc, doc) => acc + doc.compliance,
+            0
+        );
+        
+        const avgCompliance =
+            totalDocuments > 0 ? Math.round(totalCompliance / totalDocuments) : 0;
+        const avgIssues = totalDocuments > 0 ? parseFloat((totalIssues / totalDocuments).toFixed(1)) : 0;
+
+        setStats({
+            totalDocuments,
+            avgCompliance,
+            avgIssues,
+            totalIssues,
+        });
+    } else if (!isLoading) {
+        // Reset stats if there's no data for the filter
+        setStats({ totalDocuments: 0, avgCompliance: 0, avgIssues: 0, totalIssues: 0 });
     }
-  }, [filteredHistory]);
+  }, [filteredHistory, fullHistory, isLoading, filterType]);
 
   const handleFilterTypeChange = (type: FilterType) => {
     setFilterType(type);
-    setFilterValue('all');
+    setFilterValue('all'); // Reset value when type changes
   };
 
   const getWeekLabel = (weekNum: number) => {
     const year = new Date().getFullYear();
-    // Create a date for the first day of that week of the year
-    // Note: This is an approximation. `date-fns` getWeek is complex.
-    // We'll create a date in the middle of the year and set the week.
     const firstDayOfYear = new Date(year, 0, 4); // Use Jan 4th as it's always in week 1
     const dateInWeek = new Date(firstDayOfYear.getTime() + (weekNum - 1) * 7 * 24 * 60 * 60 * 1000);
+    
+    // Adjust to make sure we are on the right week
+    while(getWeek(dateInWeek, {weekStartsOn: 1}) < weekNum) {
+        dateInWeek.setDate(dateInWeek.getDate() + 1);
+    }
+    while(getWeek(dateInWeek, {weekStartsOn: 1}) > weekNum) {
+        dateInWeek.setDate(dateInWeek.getDate() - 1);
+    }
+
     const firstDay = startOfWeek(dateInWeek, { weekStartsOn: 1 });
     const lastDay = endOfWeek(dateInWeek, { weekStartsOn: 1 });
     return `Week ${weekNum}: ${format(firstDay, 'MMM d')} - ${format(lastDay, 'MMM d, yyyy')}`;
@@ -217,6 +240,7 @@ export default function DashboardPage() {
                     <SelectItem value="week">Week (This Year)</SelectItem>
                 </SelectContent>
             </Select>
+
             <Select onValueChange={setFilterValue} value={filterValue} disabled={filterType === 'all'}>
                 <SelectTrigger className="w-full md:w-[240px]">
                     <SelectValue placeholder="Select value..."/>
