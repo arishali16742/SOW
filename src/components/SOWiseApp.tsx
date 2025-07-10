@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ChecklistPanel } from '@/components/ChecklistPanel';
 import { DocumentViewer } from '@/components/DocumentViewer';
-import { initialDocText, type Issue, type AnalysisResult } from '@/lib/sow-data';
+import { initialDocText, type Issue, type AnalysisResult, type SowCheck } from '@/lib/sow-data';
 import { useToast } from '@/hooks/use-toast';
 import { analyzeSowDocument } from '@/ai/flows/analyze-sow-document';
 import { analyzeCustomPrompt } from '@/ai/flows/analyze-custom-prompt';
 import { Button } from './ui/button';
 import { Upload } from 'lucide-react';
+import { getDefaultChecks } from '@/lib/sow-checks-service';
 
 export function SOWiseApp() {
   const [docText, setDocText] = useState(initialDocText);
@@ -19,6 +20,20 @@ export function SOWiseApp() {
   const [fileName, setFileName] = useState<string | null>(null);
   const { toast } = useToast();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [sowChecks, setSowChecks] = useState<SowCheck[]>([]);
+
+  useEffect(() => {
+    // Load checks from localStorage on mount
+    setSowChecks(getDefaultChecks());
+  }, []);
+
+  const handleChecksUpdated = (newChecks: SowCheck[]) => {
+    setSowChecks(newChecks);
+    toast({
+      title: 'Checks Updated',
+      description: 'Your default checks have been saved.',
+    });
+  };
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -76,15 +91,15 @@ export function SOWiseApp() {
                 }
 
                 if (el.type === 'run' && el.shd && el.shd.fill && el.shd.fill !== 'auto' && el.shd.fill !== 'FFFFFF') {
-                  let text = el.children.map((child: any) => child.value).join('');
-                  if (text) {
-                     const wrap = (tagName: string, content: string) => `<${tagName}>${content}</${tagName}>`;
-                     if (el.isStrikethrough) text = wrap('s', text);
-                     if (el.isUnderline) text = wrap('u', text);
-                     if (el.isItalic) text = wrap('em', text);
-                     if (el.isBold) text = wrap('strong', text);
-                     return { type: 'raw_html', value: `<mark class="highlight-gray">${text}</mark>` };
-                  }
+                   let text = el.children.map((child: any) => child.value).join('');
+                   if (text) {
+                      const wrap = (tagName: string, content: string) => `<${tagName}>${content}</${tagName}>`;
+                      if (el.isStrikethrough) text = wrap('s', text);
+                      if (el.isUnderline) text = wrap('u', text);
+                      if (el.isItalic) text = wrap('em', text);
+                      if (el.isBold) text = wrap('strong', text);
+                      return { type: 'raw_html', value: `<mark class="highlight-gray">${text}</mark>` };
+                   }
                 }
                 
                 return el;
@@ -157,7 +172,10 @@ export function SOWiseApp() {
     });
     
     try {
-      const results = await analyzeSowDocument({ sowDocument: docText });
+      const results = await analyzeSowDocument({ 
+        sowDocument: docText,
+        checks: sowChecks, // Pass the dynamic checks
+       });
       
       if (results && results.length > 0) {
         setIssues(results);
@@ -280,14 +298,15 @@ export function SOWiseApp() {
         </header>
         <main className="flex flex-1 overflow-hidden transition-all duration-300">
             <ChecklistPanel
-            issues={issues}
-            selectedIssueId={selectedIssueId}
-            onSelectIssue={handleSelectIssue}
-            docText={docText}
-            onScan={handleScan}
-            isScanning={isScanning}
-            onAddPrompt={handleAddPrompt}
-            isAddingPrompt={isAddingPrompt}
+              issues={issues}
+              selectedIssueId={selectedIssueId}
+              onSelectIssue={handleSelectIssue}
+              docText={docText}
+              onScan={handleScan}
+              isScanning={isScanning}
+              onAddPrompt={handleAddPrompt}
+              isAddingPrompt={isAddingPrompt}
+              onChecksUpdated={handleChecksUpdated}
             />
             <DocumentViewer docText={docText} selectedIssue={selectedIssue} />
         </main>
