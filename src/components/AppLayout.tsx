@@ -16,6 +16,9 @@ import {
   SidebarInset,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
+import { Dialog, DialogTrigger } from './ui/dialog';
+import { Button } from './ui/button';
+import { SheetContent, Sheet } from './ui/sheet';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -44,7 +47,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <SidebarMenu>
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                  <Link href={item.href} passHref legacyBehavior>
+                  <Link href={item.href}>
                     <SidebarMenuButton
                       as="a"
                       isActive={pathname === item.href}
