@@ -48,14 +48,15 @@ export default function DashboardPage() {
       if (parsedHistory.length > 0) {
         setHistory(parsedHistory);
         const totalDocuments = parsedHistory.length;
-        const totalCompliance = parsedHistory.reduce(
-          (acc, doc) => acc + doc.compliance,
-          0
-        );
         const totalIssues = parsedHistory.reduce(
           (acc, doc) => acc + doc.failedCount,
           0
         );
+        const totalCompliance = parsedHistory.reduce(
+          (acc, doc) => acc + doc.compliance,
+          0
+        );
+        
         const avgCompliance =
           totalDocuments > 0 ? Math.round(totalCompliance / totalDocuments) : 0;
         const avgIssues = totalDocuments > 0 ? parseFloat((totalIssues / totalDocuments).toFixed(1)) : 0;
@@ -99,7 +100,7 @@ export default function DashboardPage() {
           iconColor="text-blue-500"
         />
         <StatCard
-          title="Avg Compliance"
+          title="Avg. Compliance"
           value={isLoading ? '...' : `${stats.avgCompliance}%`}
           icon={TrendingUp}
           borderColor="border-green-500"
