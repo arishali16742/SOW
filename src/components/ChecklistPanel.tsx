@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { type Issue, type SowCheck } from '@/lib/sow-data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { CheckCircle2, XCircle, ScanLine, PlusCircle, Loader2, Settings, Trash2 } from 'lucide-react';
+import { CheckCircle2, XCircle, ScanLine, PlusCircle, Loader2, Settings, Trash2, Edit } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SuggestionBox } from './SuggestionBox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
@@ -128,24 +128,42 @@ export function ChecklistPanel({
 // Sub-component for managing checks to keep logic separate
 function ManageChecksDialog({ onChecksUpdated, closeModal }: { onChecksUpdated: (checks: SowCheck[]) => void, closeModal: () => void }) {
     const [checks, setChecks] = useState<SowCheck[]>(getDefaultChecks());
-    const [newCheckTitle, setNewCheckTitle] = useState('');
-    const [newCheckPrompt, setNewCheckPrompt] = useState('');
+    const [editingCheck, setEditingCheck] = useState<SowCheck | null>(null);
   
     const handleRemoveCheck = (id: string) => {
       setChecks(prev => prev.filter(c => c.id !== id));
+      if (editingCheck?.id === id) {
+        setEditingCheck(null);
+      }
     };
-  
-    const handleAddCheck = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!newCheckTitle.trim() || !newCheckPrompt.trim()) return;
-      const newCheck: SowCheck = {
-        id: `check${Date.now()}`,
-        title: newCheckTitle.trim(),
-        prompt: newCheckPrompt.trim(),
-      };
-      setChecks(prev => [...prev, newCheck]);
-      setNewCheckTitle('');
-      setNewCheckPrompt('');
+    
+    const handleEditClick = (check: SowCheck) => {
+      setEditingCheck(check);
+    };
+
+    const handleFormSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingCheck || !editingCheck.title.trim() || !editingCheck.prompt.trim()) return;
+
+        setChecks(prev => {
+            const existing = prev.find(c => c.id === editingCheck.id);
+            if (existing) {
+                // Update existing check
+                return prev.map(c => c.id === editingCheck.id ? editingCheck : c);
+            } else {
+                // Add new check
+                return [...prev, editingCheck];
+            }
+        });
+        setEditingCheck(null); // Clear form
+    };
+
+    const handleCancelEdit = () => {
+        setEditingCheck(null);
+    }
+
+    const handleAddNewClick = () => {
+        setEditingCheck({ id: `check${Date.now()}`, title: '', prompt: '' });
     };
 
     const handleSaveChanges = () => {
@@ -165,7 +183,13 @@ function ManageChecksDialog({ onChecksUpdated, closeModal }: { onChecksUpdated: 
 
         <div className="grid grid-cols-2 gap-6 py-4">
             <div className="space-y-4">
-                <h3 className="font-semibold">Current Checks</h3>
+                <div className='flex justify-between items-center'>
+                    <h3 className="font-semibold">Current Checks</h3>
+                    <Button size="sm" variant="outline" onClick={handleAddNewClick} disabled={!!editingCheck}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add New
+                    </Button>
+                </div>
                 <ScrollArea className="h-72 pr-4">
                     <div className="space-y-2">
                         {checks.map(check => (
@@ -174,31 +198,49 @@ function ManageChecksDialog({ onChecksUpdated, closeModal }: { onChecksUpdated: 
                                 <p className="font-medium text-sm">{check.title}</p>
                                 <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{check.prompt}</p>
                             </div>
-                            <Button variant="ghost" size="icon" className="shrink-0" onClick={() => handleRemoveCheck(check.id)}>
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                            </Button>
+                            <div className='flex shrink-0'>
+                                <Button variant="ghost" size="icon" className="shrink-0" onClick={() => handleEditClick(check)} disabled={!!editingCheck}>
+                                    <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="shrink-0" onClick={() => handleRemoveCheck(check.id)} disabled={!!editingCheck}>
+                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                            </div>
                         </div>
                         ))}
                     </div>
                 </ScrollArea>
             </div>
-            <form onSubmit={handleAddCheck} className="space-y-4">
-                <h3 className="font-semibold">Add New Check</h3>
-                <div className="space-y-2">
-                    <Label htmlFor="new-check-title">Check Title</Label>
-                    <Input id="new-check-title" value={newCheckTitle} onChange={e => setNewCheckTitle(e.target.value)} placeholder="e.g., Confidentiality Clause Check" />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="new-check-prompt">AI Instructions / Prompt</Label>
-                    <Textarea id="new-check-prompt" value={newCheckPrompt} onChange={e => setNewCheckPrompt(e.target.value)} placeholder="Describe the check logic for the AI..." className="h-44" />
-                </div>
-                <Button type="submit" className="w-full">Add Check to List</Button>
+            <form onSubmit={handleFormSubmit} className="space-y-4">
+                <h3 className="font-semibold">{editingCheck?.id.startsWith('check') && editingCheck.title ? 'Edit Check' : 'Add New Check'}</h3>
+                {editingCheck ? (
+                    <>
+                        <div className="space-y-2">
+                            <Label htmlFor="check-title">Check Title</Label>
+                            <Input id="check-title" value={editingCheck.title} onChange={e => setEditingCheck({...editingCheck, title: e.target.value})} placeholder="e.g., Confidentiality Clause Check" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="check-prompt">AI Instructions / Prompt</Label>
+                            <Textarea id="check-prompt" value={editingCheck.prompt} onChange={e => setEditingCheck({...editingCheck, prompt: e.target.value})} placeholder="Describe the check logic for the AI..." className="h-44" />
+                        </div>
+                        <div className="flex gap-2">
+                           <Button onClick={handleCancelEdit} variant="outline" type="button" className="w-full">Cancel</Button>
+                           <Button type="submit" className="w-full">
+                            {checks.find(c => c.id === editingCheck.id) ? 'Update Check' : 'Add Check'}
+                           </Button>
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex items-center justify-center h-full text-sm text-muted-foreground bg-secondary/30 rounded-md">
+                        <p>Select a check to edit or add a new one.</p>
+                    </div>
+                )}
             </form>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={closeModal}>Cancel</Button>
-          <Button onClick={handleSaveChanges}>Save Changes</Button>
+          <Button onClick={handleSaveChanges}>Save and Close</Button>
         </DialogFooter>
       </>
     );

@@ -116,7 +116,7 @@ export default function DashboardPage() {
               recentDocs.map((doc: AnalysisResult) => (
                 <div
                   key={doc.id}
-                  className="flex items-center justify-between rounded-lg bg-secondary/30 p-3"
+                  className="flex items-center justify-between rounded-lg border bg-secondary/30 p-3"
                 >
                   <div className="flex items-center gap-4">
                     <FileText className="h-6 w-6 text-primary" />

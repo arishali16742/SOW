@@ -279,37 +279,37 @@ export function SOWiseApp() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden font-body text-foreground bg-background">
-        <header className="flex items-center justify-between p-4 border-b bg-card">
-            <div>
-                <h2 className="text-xl font-bold">Upload Document</h2>
-                <p className="text-sm text-muted-foreground">{fileName || 'No document uploaded'}</p>
-            </div>
-            <Button onClick={handleUploadClick}>
-                <Upload className="w-4 h-4 mr-2" />
-                Upload Document
-            </Button>
-            <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                className="hidden"
-                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            />
-        </header>
-        <main className="flex flex-1 overflow-hidden transition-all duration-300">
-            <ChecklistPanel
-              issues={issues}
-              selectedIssueId={selectedIssueId}
-              onSelectIssue={handleSelectIssue}
-              docText={docText}
-              onScan={handleScan}
-              isScanning={isScanning}
-              onAddPrompt={handleAddPrompt}
-              isAddingPrompt={isAddingPrompt}
-              onChecksUpdated={handleChecksUpdated}
-            />
-            <DocumentViewer docText={docText} selectedIssue={selectedIssue} />
-        </main>
+      <header className="flex items-center justify-between p-4 border-b bg-card">
+          <div>
+              <h2 className="text-xl font-bold">Upload & Analyze Document</h2>
+              <p className="text-sm text-muted-foreground">{fileName || 'No document uploaded'}</p>
+          </div>
+          <Button onClick={handleUploadClick}>
+              <Upload className="w-4 h-4 mr-2" />
+              Upload Document
+          </Button>
+          <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+              accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          />
+      </header>
+      <main className="flex flex-1 overflow-hidden transition-all duration-300">
+          <ChecklistPanel
+            issues={issues}
+            selectedIssueId={selectedIssueId}
+            onSelectIssue={handleSelectIssue}
+            docText={docText}
+            onScan={handleScan}
+            isScanning={isScanning}
+            onAddPrompt={handleAddPrompt}
+            isAddingPrompt={isAddingPrompt}
+            onChecksUpdated={handleChecksUpdated}
+          />
+          <DocumentViewer docText={docText} selectedIssue={selectedIssue} />
+      </main>
     </div>
   );
 }
