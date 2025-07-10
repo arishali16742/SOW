@@ -98,7 +98,7 @@ export function SOWiseApp() {
                       if (el.isUnderline) text = wrap('u', text);
                       if (el.isItalic) text = wrap('em', text);
                       if (el.isBold) text = wrap('strong', text);
-                      return { type: 'raw_html', value: `<mark class="highlight-gray">${text}</mark>` };
+                      return { type: 'raw_html', value: `<mark class="highlight-yellow">${text}</mark>` };
                    }
                 }
                 

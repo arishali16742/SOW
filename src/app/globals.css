@@ -101,7 +101,7 @@
     .prose th {
         @apply bg-slate-100;
     }
-    .prose mark.highlight-gray {
-        @apply bg-gray-200;
+    .prose mark.highlight-yellow {
+        @apply bg-yellow-200;
     }
 }
