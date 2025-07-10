@@ -69,46 +69,35 @@ export function SOWiseApp() {
                 });
             }),
             transformDocument: function(element: any) {
-              function transformRun(run: any) {
-                if (run.shd && run.shd.fill && run.shd.fill !== 'FFFFFF' && run.shd.fill !== 'auto') {
-                  // This is a simplified version of what mammoth does internally to generate HTML for a run.
-                  // It wraps the text content in various tags based on formatting.
-                  let text = run.children.map((child: any) => child.value).join('');
+              
+              function transformElement(element: any): any {
+                  if (element.children) {
+                      element.children = element.children.map(transformElement);
+                  }
 
-                  function wrap(tagName: string, content: string) {
-                    return `<${tagName}>${content}</${tagName}>`;
-                  }
-                  
-                  if (run.isStrikethrough) text = wrap('s', text);
-                  if (run.isUnderline) text = wrap('u', text);
-                  if (run.isItalic) text = wrap('em', text);
-                  if (run.isBold) text = wrap('strong', text);
-                  
-                  // Finally, wrap with the highlight mark. We'll use a generic gray highlight class.
-                  text = `<mark class="highlight-gray">${text}</mark>`;
-                  
-                  // Return a raw HTML element to replace the run
-                  return {
-                    type: 'element',
-                    tagName: 'html', // A special tag mammoth recognizes
-                    children: [{ type: 'text', value: text }]
-                  };
-                }
-                return run;
-              }
+                  if (element.type === 'run' && element.shd && element.shd.fill && element.shd.fill !== 'auto' && element.shd.fill !== 'FFFFFF') {
+                      let text = element.children.map((child: any) => child.value).join('');
 
-              function transformChildren(elem: any) {
-                  if (elem.children) {
-                      var newChildren = elem.children.map(transformChildren);
-                      return { ...elem, children: newChildren };
+                      // Basic formatting wrapper
+                      const wrap = (tagName: string, content: string) => `<${tagName}>${content}</${tagName}>`;
+                      if (element.isStrikethrough) text = wrap('s', text);
+                      if (element.isUnderline) text = wrap('u', text);
+                      if (element.isItalic) text = wrap('em', text);
+                      if (element.isBold) text = wrap('strong', text);
+                      
+                      // Wrap with the highlight mark
+                      text = `<mark class="highlight-gray">${text}</mark>`;
+                      
+                      return {
+                          type: 'raw_html',
+                          value: text
+                      };
                   }
-                  if (elem.type === 'run') {
-                      return transformRun(elem);
-                  }
-                  return elem;
+                  
+                  return element;
               }
               
-              return transformChildren(element);
+              return transformElement(element);
             }
           };
 
