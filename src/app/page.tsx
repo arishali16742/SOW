@@ -3,30 +3,41 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { type AnalysisResult } from '@/lib/sow-data';
+import { type AnalysisResult, type Issue } from '@/lib/sow-data';
 import {
   AlertTriangle,
   BarChart2,
   FileText,
   Plus,
   TrendingUp,
+  CheckCircle2,
+  XCircle,
+  ListChecks,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { StatCard } from '@/components/StatCard';
 import { cn } from '@/lib/utils';
-import { useRouter } from 'next/navigation';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
     totalDocuments: 0,
     avgCompliance: 0,
-    recentAnalyses: 0,
-    criticalIssues: 0,
+    avgIssues: 0,
+    totalIssues: 0,
   });
   const [recentDocs, setRecentDocs] = useState<AnalysisResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
+  const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisResult | null>(null);
 
   useEffect(() => {
     // Client-side only
@@ -40,28 +51,25 @@ export default function DashboardPage() {
           (acc, doc) => acc + doc.compliance,
           0
         );
-        const avgCompliance =
-          totalDocuments > 0 ? Math.round(totalCompliance / totalDocuments) : 0;
-        const criticalIssues = history.reduce(
+        const totalIssues = history.reduce(
           (acc, doc) => acc + doc.failedCount,
           0
         );
+        const avgCompliance =
+          totalDocuments > 0 ? Math.round(totalCompliance / totalDocuments) : 0;
+        const avgIssues = totalDocuments > 0 ? parseFloat((totalIssues / totalDocuments).toFixed(1)) : 0;
 
         setStats({
           totalDocuments,
           avgCompliance,
-          recentAnalyses: totalDocuments,
-          criticalIssues,
+          avgIssues,
+          totalIssues,
         });
         setRecentDocs(history.slice(0, 5)); // Show latest 5
       }
     }
     setIsLoading(false);
   }, []);
-
-  const viewAnalysis = (id: string) => {
-    router.push(`/upload?analysisId=${id}`);
-  };
 
   return (
     <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
@@ -96,15 +104,15 @@ export default function DashboardPage() {
           iconColor="text-green-500"
         />
         <StatCard
-          title="Recent Analyses"
-          value={isLoading ? '...' : stats.recentAnalyses.toString()}
-          icon={BarChart2}
+          title="Avg. Issues / Doc"
+          value={isLoading ? '...' : stats.avgIssues.toString()}
+          icon={ListChecks}
           borderColor="border-purple-500"
           iconColor="text-purple-500"
         />
         <StatCard
-          title="Total Issues"
-          value={isLoading ? '...' : stats.criticalIssues.toString()}
+          title="Total Issues Found"
+          value={isLoading ? '...' : stats.totalIssues.toString()}
           icon={AlertTriangle}
           borderColor="border-red-500"
           iconColor="text-red-500"
@@ -122,7 +130,7 @@ export default function DashboardPage() {
               recentDocs.map((doc: AnalysisResult) => (
                 <button
                   key={doc.id}
-                  onClick={() => viewAnalysis(doc.id)}
+                  onClick={() => setSelectedAnalysis(doc)}
                   className="flex w-full items-center justify-between rounded-lg border bg-secondary/30 p-3 text-left transition-colors hover:bg-secondary/50"
                 >
                   <div className="flex items-center gap-4">
@@ -157,6 +165,72 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+      
+      <AnalysisResultDialog 
+        analysis={selectedAnalysis}
+        isOpen={!!selectedAnalysis}
+        onClose={() => setSelectedAnalysis(null)}
+      />
     </div>
   );
+}
+
+interface AnalysisResultDialogProps {
+    analysis: AnalysisResult | null;
+    isOpen: boolean;
+    onClose: () => void;
+}
+
+function AnalysisResultDialog({ analysis, isOpen, onClose }: AnalysisResultDialogProps) {
+    if (!analysis) return null;
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>{analysis.fileName}</DialogTitle>
+                    <DialogDescription>
+                        Analyzed on {new Date(analysis.date).toLocaleString()}. 
+                        Found {analysis.failedCount} issue(s) out of {analysis.totalChecks} checks.
+                    </DialogDescription>
+                </DialogHeader>
+                <Separator />
+                <ScrollArea className="max-h-[60vh] pr-4">
+                    <div className="space-y-4 py-4">
+                        {analysis.issues.map((issue: Issue) => (
+                            <div key={issue.id} className="p-3 rounded-lg border bg-background">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        {issue.status === 'passed' ? (
+                                            <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+                                        ) : (
+                                            <XCircle className="w-5 h-5 text-red-500 shrink-0" />
+                                        )}
+                                        <span className="font-medium text-sm">{issue.title}</span>
+                                    </div>
+                                    {issue.status === 'failed' && issue.count && issue.count > 0 && (
+                                        <Badge variant="destructive">{issue.count} found</Badge>
+                                    )}
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-2 pl-8">{issue.description}</p>
+                                {issue.status === 'failed' && issue.relevantText && (
+                                    <div className='mt-2 pl-8'>
+                                        <p className="text-xs text-muted-foreground border-l-2 pl-2 italic">
+                                            Relevant text: "{issue.relevantText}"
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </ScrollArea>
+                <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={onClose}>Close</Button>
+                    <Button asChild>
+                      <Link href={`/upload?analysisId=${analysis.id}`}>View Full Report</Link>
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
 }
