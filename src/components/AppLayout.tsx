@@ -45,9 +45,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <SidebarMenu>
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                  <Link href={item.href} passHref>
+                  <Link href={item.href}>
                     <SidebarMenuButton
-                      as="a"
                       isActive={pathname === item.href}
                       tooltip={item.label}
                     >
@@ -63,12 +62,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         <SidebarInset>
           <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-[60px] lg:px-6">
-            <SidebarTrigger asChild>
-                <Button variant="outline" size="icon">
-                    <Bot className="h-6 w-6" />
-                    <span className="sr-only">Toggle navigation</span>
-                </Button>
-            </SidebarTrigger>
+            <SidebarTrigger />
             <div className='flex-1'>
                 {/* Header content can go here if needed */}
             </div>
