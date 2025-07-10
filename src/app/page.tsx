@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { type AnalysisResult, type Issue } from '@/lib/sow-data';
@@ -27,6 +27,16 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { RcaAnalysis } from '@/components/RcaAnalysis';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+  } from '@/components/ui/select';
+import { getYear, getQuarter, getMonth, getWeek, startOfWeek, endOfWeek, format } from 'date-fns';
+
+type FilterType = 'all' | 'year' | 'quarter' | 'month' | 'week';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -35,44 +45,91 @@ export default function DashboardPage() {
     avgIssues: 0,
     totalIssues: 0,
   });
-  const [history, setHistory] = useState<AnalysisResult[]>([]);
+  const [fullHistory, setFullHistory] = useState<AnalysisResult[]>([]);
+  const [filteredHistory, setFilteredHistory] = useState<AnalysisResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisResult | null>(null);
+
+  const [filterType, setFilterType] = useState<FilterType>('all');
+  const [filterValue, setFilterValue] = useState<string>('all');
+  
+  const filterOptions = useMemo(() => {
+    const years = [...new Set(fullHistory.map(item => getYear(new Date(item.date))))].sort((a,b) => b-a);
+    const quarters = [1, 2, 3, 4];
+    const months = [...Array(12).keys()];
+    const weeks = [...new Set(fullHistory.map(item => getWeek(new Date(item.date), { weekStartsOn: 1 })))].sort((a,b) => a-b);
+    return { years, quarters, months, weeks };
+  }, [fullHistory]);
 
   useEffect(() => {
     // Client-side only
     const storedHistory = localStorage.getItem('sowise_analysis_history');
     if (storedHistory) {
       const parsedHistory: AnalysisResult[] = JSON.parse(storedHistory);
-
-      if (parsedHistory.length > 0) {
-        setHistory(parsedHistory);
-        const totalDocuments = parsedHistory.length;
-        const totalIssues = parsedHistory.reduce(
-          (acc, doc) => acc + doc.failedCount,
-          0
-        );
-        const totalCompliance = parsedHistory.reduce(
-          (acc, doc) => acc + doc.compliance,
-          0
-        );
-        
-        const avgCompliance =
-          totalDocuments > 0 ? Math.round(totalCompliance / totalDocuments) : 0;
-        const avgIssues = totalDocuments > 0 ? parseFloat((totalIssues / totalDocuments).toFixed(1)) : 0;
-
-        setStats({
-          totalDocuments,
-          avgCompliance,
-          avgIssues,
-          totalIssues,
-        });
-      }
+      setFullHistory(parsedHistory);
+      setFilteredHistory(parsedHistory); // Initially, show all data
     }
     setIsLoading(false);
   }, []);
+  
+  useEffect(() => {
+    let newFilteredHistory = fullHistory;
 
-  const recentDocs = history.slice(0, 5);
+    if (filterType !== 'all' && filterValue !== 'all') {
+        const valueNum = parseInt(filterValue, 10);
+        newFilteredHistory = fullHistory.filter(item => {
+            const date = new Date(item.date);
+            if (filterType === 'year') return getYear(date) === valueNum;
+            if (filterType === 'quarter') return getQuarter(date) === valueNum;
+            if (filterType === 'month') return getMonth(date) === valueNum;
+            if (filterType === 'week') return getWeek(date, { weekStartsOn: 1 }) === valueNum;
+            return true;
+        });
+    }
+
+    setFilteredHistory(newFilteredHistory);
+  }, [filterType, filterValue, fullHistory]);
+
+  useEffect(() => {
+    if (filteredHistory.length >= 0) {
+      const totalDocuments = filteredHistory.length;
+      const totalIssues = filteredHistory.reduce(
+        (acc, doc) => acc + doc.failedCount,
+        0
+      );
+      const totalCompliance = filteredHistory.reduce(
+        (acc, doc) => acc + doc.compliance,
+        0
+      );
+      
+      const avgCompliance =
+        totalDocuments > 0 ? Math.round(totalCompliance / totalDocuments) : 0;
+      const avgIssues = totalDocuments > 0 ? parseFloat((totalIssues / totalDocuments).toFixed(1)) : 0;
+
+      setStats({
+        totalDocuments,
+        avgCompliance,
+        avgIssues,
+        totalIssues,
+      });
+    }
+  }, [filteredHistory]);
+
+  const handleFilterTypeChange = (type: FilterType) => {
+    setFilterType(type);
+    setFilterValue('all');
+  };
+
+  const getWeekLabel = (weekNum: number) => {
+    const year = filterType === 'year' && filterValue !== 'all' ? parseInt(filterValue) : new Date().getFullYear();
+    const firstDayOfYear = new Date(year, 0, 1);
+    const date = new Date(firstDayOfYear.getTime() + (weekNum - 1) * 7 * 24 * 60 * 60 * 1000);
+    const firstDay = startOfWeek(date, { weekStartsOn: 1 });
+    const lastDay = endOfWeek(date, { weekStartsOn: 1 });
+    return `Week ${weekNum}: ${format(firstDay, 'MMM d')} - ${format(lastDay, 'MMM d, yyyy')}`;
+  }
+  
+  const recentDocs = filteredHistory.slice(0, 5);
 
   return (
     <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
@@ -122,7 +179,39 @@ export default function DashboardPage() {
         />
       </div>
 
-      <RcaAnalysis history={history} isLoading={isLoading} />
+      <Card>
+        <CardHeader>
+            <CardTitle>Filters</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4">
+            <Select onValueChange={(value) => handleFilterTypeChange(value as FilterType)} value={filterType}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                    <SelectValue placeholder="Filter by..." />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Time</SelectItem>
+                    <SelectItem value="year">Year</SelectItem>
+                    <SelectItem value="quarter">Quarter</SelectItem>
+                    <SelectItem value="month">Month</SelectItem>
+                    <SelectItem value="week">Week</SelectItem>
+                </SelectContent>
+            </Select>
+            <Select onValueChange={setFilterValue} value={filterValue} disabled={filterType === 'all'}>
+                <SelectTrigger className="w-full md:w-[240px]">
+                    <SelectValue placeholder="Select value..."/>
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    {filterType === 'year' && filterOptions.years.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}
+                    {filterType === 'quarter' && filterOptions.quarters.map(q => <SelectItem key={q} value={String(q)}>Quarter {q}</SelectItem>)}
+                    {filterType === 'month' && filterOptions.months.map(m => <SelectItem key={m} value={String(m)}>{new Date(0, m).toLocaleString('default', { month: 'long' })}</SelectItem>)}
+                    {filterType === 'week' && filterOptions.weeks.map(w => <SelectItem key={w} value={String(w)}>{getWeekLabel(w)}</SelectItem>)}
+                </SelectContent>
+            </Select>
+        </CardContent>
+      </Card>
+
+      <RcaAnalysis history={filteredHistory} isLoading={isLoading} />
       
       <Card>
         <CardHeader>
@@ -165,7 +254,7 @@ export default function DashboardPage() {
               ))
             ) : (
               <p className="text-center text-muted-foreground">
-                No analyses performed yet. Upload a document to get started!
+                No analyses found for the selected filter.
               </p>
             )}
           </div>
