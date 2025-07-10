@@ -36,9 +36,9 @@ export function DocumentViewer({ docText, selectedIssue }: DocumentViewerProps) 
       textForDisplay = textForDisplay.replace(new RegExp(escapedHighlightText, 'g'), (match) => {
         if (!replaced) {
           replaced = true;
-          return `<mark id="highlight-span" class="bg-accent/30 rounded px-1 py-0.5 scroll-mt-24">${match}</mark>`;
+          return `<mark id="highlight-span" class="bg-red-100 text-red-900 rounded px-1 py-0.5 scroll-mt-24">${match}</mark>`;
         }
-        return `<mark class="bg-accent/30 rounded px-1 py-0.5">${match}</mark>`;
+        return `<mark class="bg-red-100 text-red-900 rounded px-1 py-0.5">${match}</mark>`;
       });
     }
 
