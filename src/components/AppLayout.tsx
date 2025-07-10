@@ -2,7 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bot, LayoutDashboard, Upload, Settings, PanelLeft } from 'lucide-react';
+import { Bot, LayoutDashboard, Upload, PanelLeft } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -38,6 +38,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 </p>
               </div>
             </div>
+            <SidebarTrigger />
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
@@ -68,16 +69,16 @@ function DesktopNavItems({ navItems }: { navItems: { href: string, label: string
         <>
             {navItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={pathname === item.href}
-                      tooltip={item.label}
-                    >
-                      <Link href={item.href}>
-                        <item.icon />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === item.href}
+                    tooltip={item.label}
+                  >
+                    <Link href={item.href}>
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
         </>
@@ -117,7 +118,7 @@ function MobileNav({ navItems }: { navItems: { href: string, label: string, icon
                       asChild
                       isActive={pathname === item.href}
                     >
-                      <Link href={item.href}>
+                      <Link href={item.href} onClick={() => setOpenMobile(false)}>
                         <item.icon />
                         <span>{item.label}</span>
                       </Link>

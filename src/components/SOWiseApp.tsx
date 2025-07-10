@@ -10,6 +10,7 @@ import { analyzeCustomPrompt } from '@/ai/flows/analyze-custom-prompt';
 import { Button } from './ui/button';
 import { Upload } from 'lucide-react';
 import { getDefaultChecks } from '@/lib/sow-checks-service';
+import { useSearchParams } from 'next/navigation';
 
 export function SOWiseApp() {
   const [docText, setDocText] = useState(initialDocText);
@@ -21,11 +22,28 @@ export function SOWiseApp() {
   const { toast } = useToast();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [sowChecks, setSowChecks] = useState<SowCheck[]>([]);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     // Load checks from localStorage on mount
     setSowChecks(getDefaultChecks());
-  }, []);
+
+    // Check for analysisId in query params
+    const analysisId = searchParams.get('analysisId');
+    if (analysisId) {
+      const history: AnalysisResult[] = JSON.parse(localStorage.getItem('sowise_analysis_history') || '[]');
+      const result = history.find(r => r.id === analysisId);
+      if (result) {
+        setDocText(result.docHtmlContent || '<h2>Document content not found in history.</h2>');
+        setIssues(result.issues);
+        setFileName(result.fileName);
+        toast({
+          title: 'Loaded from History',
+          description: `Displaying analysis for "${result.fileName}".`
+        });
+      }
+    }
+  }, [searchParams, toast]);
 
   const handleChecksUpdated = (newChecks: SowCheck[]) => {
     setSowChecks(newChecks);
@@ -197,6 +215,7 @@ export function SOWiseApp() {
           compliance: Math.round(compliance),
           failedCount,
           totalChecks,
+          docHtmlContent: docText,
         };
 
         const history: AnalysisResult[] = JSON.parse(localStorage.getItem('sowise_analysis_history') || '[]');
@@ -252,6 +271,8 @@ export function SOWiseApp() {
         status: result.status,
         description: result.description,
         relevantText: result.relevantText,
+        occurrences: result.relevantText ? [result.relevantText] : [],
+        count: result.relevantText ? 1 : 0,
       };
 
       setIssues(prev => [newIssue, ...prev]);

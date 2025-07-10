@@ -4,6 +4,8 @@ export interface Issue {
   status: 'passed' | 'failed';
   description: string;
   relevantText: string;
+  count?: number;
+  occurrences?: string[];
 }
 
 export interface AnalysisResult {
@@ -14,6 +16,7 @@ export interface AnalysisResult {
   compliance: number; // 0-100
   failedCount: number;
   totalChecks: number;
+  docHtmlContent?: string;
 }
 
 export interface SowCheck {

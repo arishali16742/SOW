@@ -1,9 +1,19 @@
+'use client';
 import { SOWiseApp } from '@/components/SOWiseApp';
+import { Suspense } from 'react';
 
-export default function UploadPage() {
+function UploadPageContent() {
   return (
     <div className="flex-1 overflow-hidden">
       <SOWiseApp />
     </div>
   );
+}
+
+export default function UploadPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <UploadPageContent />
+        </Suspense>
+    )
 }

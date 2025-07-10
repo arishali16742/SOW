@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { getDefaultChecks, saveDefaultChecks } from '@/lib/sow-checks-service';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
+import { Badge } from './ui/badge';
 
 interface ChecklistPanelProps {
   issues: Issue[];
@@ -107,6 +108,9 @@ export function ChecklistPanel({
                   <XCircle className="w-5 h-5 text-red-500 shrink-0" />
                 )}
                 <span className="flex-1 font-medium">{issue.title}</span>
+                {issue.status === 'failed' && issue.count && issue.count > 0 && (
+                    <Badge variant="destructive">{issue.count}</Badge>
+                )}
               </div>
             </button>
           ))}
@@ -138,7 +142,7 @@ function ManageChecksDialog({ onChecksUpdated, closeModal }: { onChecksUpdated: 
     };
     
     const handleEditClick = (check: SowCheck) => {
-      setEditingCheck(check);
+      setEditingCheck({...check});
     };
 
     const handleFormSubmit = (e: React.FormEvent) => {
@@ -194,10 +198,10 @@ function ManageChecksDialog({ onChecksUpdated, closeModal }: { onChecksUpdated: 
                     <div className="space-y-2">
                         {checks.map(check => (
                         <div key={check.id} className="flex items-start justify-between p-3 rounded-md border bg-secondary/30">
-                            <div>
+                            <button className="text-left flex-1" onClick={() => handleEditClick(check)}>
                                 <p className="font-medium text-sm">{check.title}</p>
                                 <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{check.prompt}</p>
-                            </div>
+                            </button>
                             <div className='flex shrink-0'>
                                 <Button variant="ghost" size="icon" className="shrink-0" onClick={() => handleEditClick(check)} disabled={!!editingCheck}>
                                     <Edit className="w-4 h-4" />

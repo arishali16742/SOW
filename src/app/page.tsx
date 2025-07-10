@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { StatCard } from '@/components/StatCard';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -25,6 +26,7 @@ export default function DashboardPage() {
   });
   const [recentDocs, setRecentDocs] = useState<AnalysisResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     // Client-side only
@@ -56,6 +58,10 @@ export default function DashboardPage() {
     }
     setIsLoading(false);
   }, []);
+
+  const viewAnalysis = (id: string) => {
+    router.push(`/upload?analysisId=${id}`);
+  };
 
   return (
     <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
@@ -114,9 +120,10 @@ export default function DashboardPage() {
               <p className="text-muted-foreground">Loading history...</p>
             ) : recentDocs.length > 0 ? (
               recentDocs.map((doc: AnalysisResult) => (
-                <div
+                <button
                   key={doc.id}
-                  className="flex items-center justify-between rounded-lg border bg-secondary/30 p-3"
+                  onClick={() => viewAnalysis(doc.id)}
+                  className="flex w-full items-center justify-between rounded-lg border bg-secondary/30 p-3 text-left transition-colors hover:bg-secondary/50"
                 >
                   <div className="flex items-center gap-4">
                     <FileText className="h-6 w-6 text-primary" />
@@ -140,7 +147,7 @@ export default function DashboardPage() {
                   >
                     {doc.compliance}% Compliant
                   </Badge>
-                </div>
+                </button>
               ))
             ) : (
               <p className="text-center text-muted-foreground">

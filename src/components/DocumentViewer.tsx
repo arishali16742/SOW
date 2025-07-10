@@ -12,7 +12,7 @@ interface DocumentViewerProps {
 export function DocumentViewer({ docText, selectedIssue }: DocumentViewerProps) {
   useEffect(() => {
     if (selectedIssue) {
-      const element = document.getElementById('highlight-span');
+      const element = document.getElementById('highlight-span-0');
       if (element) {
         element.scrollIntoView({
           behavior: 'smooth',
@@ -25,20 +25,21 @@ export function DocumentViewer({ docText, selectedIssue }: DocumentViewerProps) 
   const createHighlightedHtml = () => {
     let textForDisplay = docText;
 
-    const highlightText = selectedIssue?.relevantText;
-    if (highlightText && selectedIssue.status === 'failed') {
-      const escapedHighlightText = highlightText.replace(
-        /[.*+?^${}()|[\]\\]/g,
-        '\\$&'
-      );
-      // Replace only the first occurrence to attach the ID
-      let replaced = false;
-      textForDisplay = textForDisplay.replace(new RegExp(escapedHighlightText, 'g'), (match) => {
-        if (!replaced) {
-          replaced = true;
-          return `<mark id="highlight-span" class="bg-red-100 text-red-900 rounded px-1 py-0.5 scroll-mt-24">${match}</mark>`;
-        }
-        return `<mark class="bg-red-100 text-red-900 rounded px-1 py-0.5">${match}</mark>`;
+    const occurrences = selectedIssue?.occurrences;
+    if (occurrences && occurrences.length > 0 && selectedIssue.status === 'failed') {
+      const uniqueOccurrences = [...new Set(occurrences)];
+      
+      uniqueOccurrences.forEach(occurrence => {
+        const escapedHighlightText = occurrence.replace(
+          /[.*+?^${}()|[\]\\]/g,
+          '\\$&'
+        );
+        
+        let i = 0;
+        textForDisplay = textForDisplay.replace(new RegExp(escapedHighlightText, 'g'), (match) => {
+            const id = `highlight-span-${i++}`;
+            return `<mark id="${id}" class="bg-red-100 text-red-900 rounded px-1 py-0.5 scroll-mt-24">${match}</mark>`;
+        });
       });
     }
 

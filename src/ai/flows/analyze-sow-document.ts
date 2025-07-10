@@ -23,6 +23,8 @@ const IssueSchema = z.object({
   status: z.enum(['passed', 'failed']).describe('The status of the check.'),
   description: z.string().describe('A detailed description of the finding. Explains why it passed or failed.'),
   relevantText: z.string().describe('The EXACT, verbatim text snippet from the document that is relevant to this issue. This text will be used for highlighting. If no specific text is relevant (e.g., a missing section), provide a sentence from the document that is closest to where the missing item should be.'),
+  count: z.number().optional().describe('The total count of all occurrences related to the issue. For example, if 4 spelling mistakes are found, this should be 4.'),
+  occurrences: z.array(z.string()).optional().describe('An array of exact, verbatim text snippets for each occurrence of the issue found in the document. This is used for highlighting all instances.'),
 });
 
 const AnalyzeSowDocumentInputSchema = z.object({
@@ -54,7 +56,14 @@ const prompt = ai.definePrompt({
   output: { schema: AnalyzeSowDocumentOutputSchema },
   prompt: `You are an expert SOW (Statement of Work) auditor. Your task is to analyze the provided SOW document against a dynamic set of user-provided rules and return your findings as a structured JSON array.
 
-For each rule, you must provide the same ID from the input check, a title, a status ('passed' or 'failed'), a detailed description of the outcome, and the EXACT relevant text from the document that justifies your finding. This text MUST be a direct, verbatim quote from the document.
+For each rule, you must provide the same ID from the input check, a title, a status ('passed' or 'failed'), and a detailed description of the outcome.
+
+**Crucially, you must also identify ALL occurrences of an issue.**
+- occurrences: Provide an array of the EXACT, verbatim text snippets for every single instance of the issue.
+- count: Provide the total number of occurrences found.
+- relevantText: Provide the first occurrence as the main relevant text for initial focus.
+
+If no specific text is relevant (e.g., a missing section), relevantText should contain a sentence from the document that is closest to where the missing item should be, occurrences should be an empty array, and count should be 0.
 
 **Document to Analyze:**
 \`\`\`
