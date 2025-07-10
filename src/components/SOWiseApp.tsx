@@ -47,6 +47,7 @@ export function SOWiseApp() {
       if (arrayBuffer) {
         try {
           const { default: mammoth } = await import('mammoth');
+          
           const mammothOptions = {
             styleMap: [
               "b => strong",
@@ -68,36 +69,28 @@ export function SOWiseApp() {
                     };
                 });
             }),
-            transformDocument: function(element: any) {
-              
-              function transformElement(element: any): any {
-                  if (element.children) {
-                      element.children = element.children.map(transformElement);
-                  }
+            transformDocument: (element: any) => {
+              function transform(el: any) {
+                if (el.children) {
+                  el.children = el.children.map(transform);
+                }
 
-                  if (element.type === 'run' && element.shd && element.shd.fill && element.shd.fill !== 'auto' && element.shd.fill !== 'FFFFFF') {
-                      let text = element.children.map((child: any) => child.value).join('');
-
-                      // Basic formatting wrapper
-                      const wrap = (tagName: string, content: string) => `<${tagName}>${content}</${tagName}>`;
-                      if (element.isStrikethrough) text = wrap('s', text);
-                      if (element.isUnderline) text = wrap('u', text);
-                      if (element.isItalic) text = wrap('em', text);
-                      if (element.isBold) text = wrap('strong', text);
-                      
-                      // Wrap with the highlight mark
-                      text = `<mark class="highlight-gray">${text}</mark>`;
-                      
-                      return {
-                          type: 'raw_html',
-                          value: text
-                      };
+                if (el.type === 'run' && el.shd && el.shd.fill && el.shd.fill !== 'auto' && el.shd.fill !== 'FFFFFF') {
+                  let text = el.children.map((child: any) => child.value).join('');
+                  if (text) {
+                     const wrap = (tagName: string, content: string) => `<${tagName}>${content}</${tagName}>`;
+                     if (el.isStrikethrough) text = wrap('s', text);
+                     if (el.isUnderline) text = wrap('u', text);
+                     if (el.isItalic) text = wrap('em', text);
+                     if (el.isBold) text = wrap('strong', text);
+                     return { type: 'raw_html', value: `<mark class="highlight-gray">${text}</mark>` };
                   }
-                  
-                  return element;
+                }
+                
+                return el;
               }
-              
-              return transformElement(element);
+
+              return transform(element);
             }
           };
 
