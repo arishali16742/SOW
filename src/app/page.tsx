@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { type AnalysisResult, type Issue } from '@/lib/sow-data';
 import {
   AlertTriangle,
-  BarChart2,
   FileText,
   Plus,
   TrendingUp,
@@ -27,6 +26,7 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { RcaAnalysis } from '@/components/RcaAnalysis';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -35,7 +35,7 @@ export default function DashboardPage() {
     avgIssues: 0,
     totalIssues: 0,
   });
-  const [recentDocs, setRecentDocs] = useState<AnalysisResult[]>([]);
+  const [history, setHistory] = useState<AnalysisResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisResult | null>(null);
 
@@ -43,15 +43,16 @@ export default function DashboardPage() {
     // Client-side only
     const storedHistory = localStorage.getItem('sowise_analysis_history');
     if (storedHistory) {
-      const history: AnalysisResult[] = JSON.parse(storedHistory);
+      const parsedHistory: AnalysisResult[] = JSON.parse(storedHistory);
 
-      if (history.length > 0) {
-        const totalDocuments = history.length;
-        const totalCompliance = history.reduce(
+      if (parsedHistory.length > 0) {
+        setHistory(parsedHistory);
+        const totalDocuments = parsedHistory.length;
+        const totalCompliance = parsedHistory.reduce(
           (acc, doc) => acc + doc.compliance,
           0
         );
-        const totalIssues = history.reduce(
+        const totalIssues = parsedHistory.reduce(
           (acc, doc) => acc + doc.failedCount,
           0
         );
@@ -65,11 +66,12 @@ export default function DashboardPage() {
           avgIssues,
           totalIssues,
         });
-        setRecentDocs(history.slice(0, 5)); // Show latest 5
       }
     }
     setIsLoading(false);
   }, []);
+
+  const recentDocs = history.slice(0, 5);
 
   return (
     <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
@@ -118,6 +120,9 @@ export default function DashboardPage() {
           iconColor="text-red-500"
         />
       </div>
+
+      <RcaAnalysis history={history} isLoading={isLoading} />
+      
       <Card>
         <CardHeader>
           <CardTitle>Recent Documents</CardTitle>
