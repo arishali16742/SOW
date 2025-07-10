@@ -2,7 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bot, LayoutDashboard, Upload, Settings } from 'lucide-react';
+import { Bot, LayoutDashboard, Upload, Settings, PanelLeft } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -13,12 +13,12 @@ import {
   SidebarMenuButton,
   SidebarInset,
   SidebarTrigger,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { Button } from './ui/button';
+import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-
   const navItems = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/upload', label: 'Upload Document', icon: Upload },
@@ -41,27 +41,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.href}
-                    tooltip={item.label}
-                  >
-                    <Link href={item.href}>
-                      <item.icon />
-                      <span>{item.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              <DesktopNavItems navItems={navItems} />
             </SidebarMenu>
           </SidebarContent>
         </Sidebar>
 
         <SidebarInset>
           <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-[60px] lg:px-6">
-            <SidebarTrigger />
+            <MobileNav navItems={navItems} />
             <div className='flex-1'>
                 {/* Header content can go here if needed */}
             </div>
@@ -71,17 +58,75 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </main>
         </SidebarInset>
       </div>
-      <div className="md:hidden">
-        {/* This is a bit of a hack to ensure the mobile sheet content has access to the nav items */}
-        {/* In a real app, this would be handled by a more robust state management solution */}
-        <div className="hidden">
-          {navItems.map((item) => (
-            <Link key={item.href} href={item.href}>
-              {item.label}
-            </Link>
-          ))}
-        </div>
-      </div>
     </SidebarProvider>
+  );
+}
+
+function DesktopNavItems({ navItems }: { navItems: { href: string, label: string, icon: React.ElementType }[] }) {
+    const pathname = usePathname();
+    return (
+        <>
+            {navItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === item.href}
+                      tooltip={item.label}
+                    >
+                      <Link href={item.href}>
+                        <item.icon />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+        </>
+    )
+}
+
+
+function MobileNav({ navItems }: { navItems: { href: string, label: string, icon: React.ElementType }[] }) {
+  const { openMobile, setOpenMobile } = useSidebar();
+  const pathname = usePathname();
+
+  return (
+    <Sheet open={openMobile} onOpenChange={setOpenMobile}>
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="icon" className="md:hidden">
+          <PanelLeft />
+          <span className="sr-only">Toggle Menu</span>
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-64 p-0">
+      <SidebarHeader>
+            <div className="flex items-center gap-2">
+              <Bot className="w-8 h-8 text-primary" />
+              <div className="flex flex-col">
+                <h1 className="text-xl font-bold">SOWise</h1>
+                <p className="text-xs text-muted-foreground">
+                  SOW Auditor AI
+                </p>
+              </div>
+            </div>
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarMenu>
+              {navItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === item.href}
+                    >
+                      <Link href={item.href}>
+                        <item.icon />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarContent>
+      </SheetContent>
+    </Sheet>
   );
 }
