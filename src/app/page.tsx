@@ -57,7 +57,7 @@ export default function DashboardPage() {
     const years = [...new Set(fullHistory.map(item => getYear(new Date(item.date))))].sort((a,b) => b-a);
     const quarters = [1, 2, 3, 4];
     const months = [...Array(12).keys()];
-    const weeks = [...new Set(fullHistory.map(item => getWeek(new Date(item.date), { weekStartsOn: 1 })))].sort((a,b) => a-b);
+    const weeks = [...new Set(fullHistory.map(item => getWeek(new Date(item.date), { weekStartsOn: 1 })))].sort((a,b) => b-a); // Most recent week first
     return { years, quarters, months, weeks };
   }, [fullHistory]);
 
@@ -73,18 +73,36 @@ export default function DashboardPage() {
   }, []);
   
   useEffect(() => {
+    if (filterType === 'all') {
+      setFilteredHistory(fullHistory);
+      return;
+    }
+    
     let newFilteredHistory = fullHistory;
 
-    if (filterType !== 'all' && filterValue !== 'all') {
+    if (filterValue !== 'all') {
         const valueNum = parseInt(filterValue, 10);
         newFilteredHistory = fullHistory.filter(item => {
             const date = new Date(item.date);
+            const currentYear = new Date().getFullYear(); // Use current year as default for month/quarter/week filters
+            
             if (filterType === 'year') return getYear(date) === valueNum;
-            if (filterType === 'quarter') return getQuarter(date) === valueNum;
-            if (filterType === 'month') return getMonth(date) === valueNum;
-            if (filterType === 'week') return getWeek(date, { weekStartsOn: 1 }) === valueNum;
+            if (filterType === 'quarter') return getYear(date) === currentYear && getQuarter(date) === valueNum;
+            if (filterType === 'month') return getYear(date) === currentYear && getMonth(date) === valueNum;
+            if (filterType === 'week') return getYear(date) === currentYear && getWeek(date, { weekStartsOn: 1 }) === valueNum;
             return true;
         });
+    } else {
+      // If 'all' is selected for a filter type, filter by the type for the current year
+      newFilteredHistory = fullHistory.filter(item => {
+        const date = new Date(item.date);
+        const currentYear = new Date().getFullYear();
+        if (filterType === 'year') return true; // 'all' years
+        if (filterType === 'quarter') return getYear(date) === currentYear;
+        if (filterType === 'month') return getYear(date) === currentYear;
+        if (filterType === 'week') return getYear(date) === currentYear;
+        return true;
+      });
     }
 
     setFilteredHistory(newFilteredHistory);
@@ -121,11 +139,14 @@ export default function DashboardPage() {
   };
 
   const getWeekLabel = (weekNum: number) => {
-    const year = filterType === 'year' && filterValue !== 'all' ? parseInt(filterValue) : new Date().getFullYear();
-    const firstDayOfYear = new Date(year, 0, 1);
-    const date = new Date(firstDayOfYear.getTime() + (weekNum - 1) * 7 * 24 * 60 * 60 * 1000);
-    const firstDay = startOfWeek(date, { weekStartsOn: 1 });
-    const lastDay = endOfWeek(date, { weekStartsOn: 1 });
+    const year = new Date().getFullYear();
+    // Create a date for the first day of that week of the year
+    // Note: This is an approximation. `date-fns` getWeek is complex.
+    // We'll create a date in the middle of the year and set the week.
+    const firstDayOfYear = new Date(year, 0, 4); // Use Jan 4th as it's always in week 1
+    const dateInWeek = new Date(firstDayOfYear.getTime() + (weekNum - 1) * 7 * 24 * 60 * 60 * 1000);
+    const firstDay = startOfWeek(dateInWeek, { weekStartsOn: 1 });
+    const lastDay = endOfWeek(dateInWeek, { weekStartsOn: 1 });
     return `Week ${weekNum}: ${format(firstDay, 'MMM d')} - ${format(lastDay, 'MMM d, yyyy')}`;
   }
   
@@ -191,9 +212,9 @@ export default function DashboardPage() {
                 <SelectContent>
                     <SelectItem value="all">All Time</SelectItem>
                     <SelectItem value="year">Year</SelectItem>
-                    <SelectItem value="quarter">Quarter</SelectItem>
-                    <SelectItem value="month">Month</SelectItem>
-                    <SelectItem value="week">Week</SelectItem>
+                    <SelectItem value="quarter">Quarter (This Year)</SelectItem>
+                    <SelectItem value="month">Month (This Year)</SelectItem>
+                    <SelectItem value="week">Week (This Year)</SelectItem>
                 </SelectContent>
             </Select>
             <Select onValueChange={setFilterValue} value={filterValue} disabled={filterType === 'all'}>
