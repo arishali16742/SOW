@@ -35,6 +35,7 @@ import {
     SelectValue,
   } from '@/components/ui/select';
 import { getYear, getQuarter, getMonth, getWeek, startOfWeek, endOfWeek, format, isWithinInterval } from 'date-fns';
+import { TrendAnalysis } from '@/components/TrendAnalysis';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -275,7 +276,8 @@ export default function DashboardPage() {
             </Select>
         </CardContent>
       </Card>
-
+      
+      <TrendAnalysis history={filteredHistory} isLoading={isLoading} />
       <RcaAnalysis history={filteredHistory} isLoading={isLoading} />
       
       <Card>
