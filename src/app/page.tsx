@@ -34,9 +34,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
-import { getYear, getQuarter, getMonth, getWeek, startOfWeek, endOfWeek, format } from 'date-fns';
-
-type FilterType = 'all' | 'year' | 'quarter' | 'month' | 'week';
+import { getYear, getQuarter, getMonth, getWeek, startOfWeek, endOfWeek, format, isWithinInterval } from 'date-fns';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -50,22 +48,36 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisResult | null>(null);
 
-  const [filterType, setFilterType] = useState<FilterType>('all');
-  const [filterValue, setFilterValue] = useState<string>('all');
-  
+  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedQuarter, setSelectedQuarter] = useState<string>('all');
+  const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [selectedWeek, setSelectedWeek] = useState<string>('all');
+
   const filterOptions = useMemo(() => {
     const years = [...new Set(fullHistory.map(item => getYear(new Date(item.date))))].sort((a,b) => b-a);
-    const quarters = [1, 2, 3, 4];
-    const months = [...Array(12).keys()];
     
-    // Get unique weeks from the current year, sorted most recent first
-    const currentYearWeeks = fullHistory
-      .filter(item => getYear(new Date(item.date)) === new Date().getFullYear())
-      .map(item => getWeek(new Date(item.date), { weekStartsOn: 1 }));
-    const weeks = [...new Set(currentYearWeeks)].sort((a,b) => b-a);
+    let yearToFilter = selectedYear !== 'all' ? parseInt(selectedYear, 10) : new Date().getFullYear();
+
+    const dataInYear = fullHistory.filter(item => getYear(new Date(item.date)) === yearToFilter);
     
+    const quarters = [...new Set(dataInYear.map(item => getQuarter(new Date(item.date))))].sort((a,b) => a-b);
+    
+    let quarterToFilter = selectedQuarter !== 'all' ? parseInt(selectedQuarter, 10) : null;
+    let dataInQuarter = dataInYear;
+    if (quarterToFilter) {
+      dataInQuarter = dataInYear.filter(item => getQuarter(new Date(item.date)) === quarterToFilter);
+    }
+    const months = [...new Set(dataInQuarter.map(item => getMonth(new Date(item.date))))].sort((a,b) => a-b);
+
+    let monthToFilter = selectedMonth !== 'all' ? parseInt(selectedMonth, 10) : null;
+    let dataInMonth = dataInQuarter;
+    if (monthToFilter !== null) {
+        dataInMonth = dataInQuarter.filter(item => getMonth(new Date(item.date)) === monthToFilter);
+    }
+    const weeks = [...new Set(dataInMonth.map(item => getWeek(new Date(item.date), {weekStartsOn: 1})))].sort((a,b) => b-a);
+
     return { years, quarters, months, weeks };
-  }, [fullHistory]);
+  }, [fullHistory, selectedYear, selectedQuarter, selectedMonth]);
 
   useEffect(() => {
     // Client-side only
@@ -73,57 +85,38 @@ export default function DashboardPage() {
     if (storedHistory) {
       const parsedHistory: AnalysisResult[] = JSON.parse(storedHistory);
       setFullHistory(parsedHistory);
+      setFilteredHistory(parsedHistory);
     }
     setIsLoading(false);
   }, []);
   
   useEffect(() => {
-    if (filterType === 'all') {
-      setFilteredHistory(fullHistory);
-      return;
-    }
-    
     let newFilteredHistory = fullHistory;
 
-    if (filterValue !== 'all') {
-        const valueNum = parseInt(filterValue, 10);
-        newFilteredHistory = fullHistory.filter(item => {
-            const date = new Date(item.date);
-            const currentYear = new Date().getFullYear(); 
-            
-            if (filterType === 'year') return getYear(date) === valueNum;
-            // For Quarter, Month, Week, filter by value within the current year
-            if (filterType === 'quarter') return getYear(date) === currentYear && getQuarter(date) === valueNum;
-            if (filterType === 'month') return getYear(date) === currentYear && getMonth(date) === valueNum;
-            if (filterType === 'week') return getYear(date) === currentYear && getWeek(date, { weekStartsOn: 1 }) === valueNum;
-            return true;
-        });
-    } else {
-      // If 'all' is selected for a specific filter type, show all data for that type (e.g., all data for all years)
-      // or all data for the current year for time-boxed filters.
-      newFilteredHistory = fullHistory.filter(item => {
-        const date = new Date(item.date);
-        const currentYear = new Date().getFullYear();
-        if (filterType === 'year') return true; // 'all' years means show everything
-        if (filterType === 'quarter') return getYear(date) === currentYear;
-        if (filterType === 'month') return getYear(date) === currentYear;
-        if (filterType === 'week') return getYear(date) === currentYear;
-        return true;
-      });
+    if (selectedYear !== 'all') {
+      const yearNum = parseInt(selectedYear, 10);
+      newFilteredHistory = newFilteredHistory.filter(item => getYear(new Date(item.date)) === yearNum);
     }
-
+    if (selectedQuarter !== 'all') {
+      const quarterNum = parseInt(selectedQuarter, 10);
+      newFilteredHistory = newFilteredHistory.filter(item => getQuarter(new Date(item.date)) === quarterNum);
+    }
+    if (selectedMonth !== 'all') {
+      const monthNum = parseInt(selectedMonth, 10);
+      newFilteredHistory = newFilteredHistory.filter(item => getMonth(new Date(item.date)) === monthNum);
+    }
+    if (selectedWeek !== 'all') {
+      const weekNum = parseInt(selectedWeek, 10);
+      newFilteredHistory = newFilteredHistory.filter(item => getWeek(new Date(item.date), { weekStartsOn: 1 }) === weekNum);
+    }
+    
     setFilteredHistory(newFilteredHistory);
-  }, [filterType, filterValue, fullHistory]);
+  }, [selectedYear, selectedQuarter, selectedMonth, selectedWeek, fullHistory]);
 
   useEffect(() => {
     if (fullHistory.length > 0 && !isLoading) {
-        let historyToProcess = filteredHistory;
-        // When the component first loads, filteredHistory might not be set yet, but fullHistory is.
-        // Also if filter is 'all', filteredHistory will be the same as fullHistory.
-        if (filteredHistory.length === 0 && filterType === 'all') {
-            historyToProcess = fullHistory;
-        }
-
+        const historyToProcess = filteredHistory;
+        
         const totalDocuments = historyToProcess.length;
         const totalIssues = historyToProcess.reduce(
             (acc, doc) => acc + doc.failedCount,
@@ -148,19 +141,32 @@ export default function DashboardPage() {
         // Reset stats if there's no data for the filter
         setStats({ totalDocuments: 0, avgCompliance: 0, avgIssues: 0, totalIssues: 0 });
     }
-  }, [filteredHistory, fullHistory, isLoading, filterType]);
+  }, [filteredHistory, fullHistory, isLoading]);
 
-  const handleFilterTypeChange = (type: FilterType) => {
-    setFilterType(type);
-    setFilterValue('all'); // Reset value when type changes
-  };
+
+  const handleYearChange = (year: string) => {
+    setSelectedYear(year);
+    setSelectedQuarter('all');
+    setSelectedMonth('all');
+    setSelectedWeek('all');
+  }
+
+  const handleQuarterChange = (quarter: string) => {
+    setSelectedQuarter(quarter);
+    setSelectedMonth('all');
+    setSelectedWeek('all');
+  }
+
+  const handleMonthChange = (month: string) => {
+    setSelectedMonth(month);
+    setSelectedWeek('all');
+  }
 
   const getWeekLabel = (weekNum: number) => {
-    const year = new Date().getFullYear();
-    const firstDayOfYear = new Date(year, 0, 4); // Use Jan 4th as it's always in week 1
+    const year = selectedYear !== 'all' ? parseInt(selectedYear, 10) : new Date().getFullYear();
+    const firstDayOfYear = new Date(year, 0, 4); 
     const dateInWeek = new Date(firstDayOfYear.getTime() + (weekNum - 1) * 7 * 24 * 60 * 60 * 1000);
     
-    // Adjust to make sure we are on the right week
     while(getWeek(dateInWeek, {weekStartsOn: 1}) < weekNum) {
         dateInWeek.setDate(dateInWeek.getDate() + 1);
     }
@@ -227,30 +233,44 @@ export default function DashboardPage() {
         <CardHeader>
             <CardTitle>Filters</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4">
-            <Select onValueChange={(value) => handleFilterTypeChange(value as FilterType)} value={filterType}>
-                <SelectTrigger className="w-full md:w-[180px]">
-                    <SelectValue placeholder="Filter by..." />
+        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Select onValueChange={handleYearChange} value={selectedYear}>
+                <SelectTrigger>
+                    <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="all">All Time</SelectItem>
-                    <SelectItem value="year">Year</SelectItem>
-                    <SelectItem value="quarter">Quarter (This Year)</SelectItem>
-                    <SelectItem value="month">Month (This Year)</SelectItem>
-                    <SelectItem value="week">Week (This Year)</SelectItem>
+                    <SelectItem value="all">All Years</SelectItem>
+                    {filterOptions.years.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}
                 </SelectContent>
             </Select>
 
-            <Select onValueChange={setFilterValue} value={filterValue} disabled={filterType === 'all'}>
-                <SelectTrigger className="w-full md:w-[240px]">
-                    <SelectValue placeholder="Select value..."/>
+            <Select onValueChange={handleQuarterChange} value={selectedQuarter} disabled={selectedYear === 'all'}>
+                <SelectTrigger>
+                    <SelectValue placeholder="Quarter" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    {filterType === 'year' && filterOptions.years.map(year => <SelectItem key={year} value={String(year)}>{year}</SelectItem>)}
-                    {filterType === 'quarter' && filterOptions.quarters.map(q => <SelectItem key={q} value={String(q)}>Quarter {q}</SelectItem>)}
-                    {filterType === 'month' && filterOptions.months.map(m => <SelectItem key={m} value={String(m)}>{new Date(0, m).toLocaleString('default', { month: 'long' })}</SelectItem>)}
-                    {filterType === 'week' && filterOptions.weeks.map(w => <SelectItem key={w} value={String(w)}>{getWeekLabel(w)}</SelectItem>)}
+                    <SelectItem value="all">All Quarters</SelectItem>
+                    {filterOptions.quarters.map(q => <SelectItem key={q} value={String(q)}>Quarter {q}</SelectItem>)}
+                </SelectContent>
+            </Select>
+            
+            <Select onValueChange={handleMonthChange} value={selectedMonth} disabled={selectedQuarter === 'all'}>
+                <SelectTrigger>
+                    <SelectValue placeholder="Month" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Months</SelectItem>
+                    {filterOptions.months.map(m => <SelectItem key={m} value={String(m)}>{new Date(0, m).toLocaleString('default', { month: 'long' })}</SelectItem>)}
+                </SelectContent>
+            </Select>
+
+            <Select onValueChange={setSelectedWeek} value={selectedWeek} disabled={selectedMonth === 'all'}>
+                <SelectTrigger>
+                    <SelectValue placeholder="Week" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Weeks</SelectItem>
+                    {filterOptions.weeks.map(w => <SelectItem key={w} value={String(w)}>{getWeekLabel(w)}</SelectItem>)}
                 </SelectContent>
             </Select>
         </CardContent>
