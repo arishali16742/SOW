@@ -47,7 +47,25 @@ export function SOWiseApp() {
       if (arrayBuffer) {
         try {
           const { default: mammoth } = await import('mammoth');
-          const result = await mammoth.convertToHtml({ arrayBuffer });
+          const mammothOptions = {
+             styleMap: [
+                "p[style-name='Highlight'] => mark.highlight-gray:fresh",
+                "r[style-name='Highlight'] => mark.highlight-gray:fresh",
+                "b => strong",
+                "i => em",
+                "u => u",
+                "strike => s",
+                "p[style-name='Heading 1'] => h1:fresh",
+                "p[style-name='Heading 2'] => h2:fresh",
+                "p[style-name='Heading 3'] => h3:fresh",
+                "p[style-name='Heading 4'] => h4:fresh",
+                "p[style-name='Title'] => h1:fresh",
+                "p[style-name='Subtitle'] => h2:fresh",
+                "p[style-name='Code Block'] => pre:fresh",
+             ]
+          };
+
+          const result = await mammoth.convertToHtml({ arrayBuffer }, mammothOptions);
           setDocText(result.value);
           toast({
             title: 'File Uploaded',
