@@ -59,11 +59,11 @@ const prompt = ai.definePrompt({
 For each rule, you must provide the same ID from the input check, a title, a status ('passed' or 'failed'), and a detailed description of the outcome.
 
 **Crucially, you must also identify ALL occurrences of an issue.**
-- occurrences: Provide an array of the EXACT, verbatim text snippets for every single instance of the issue.
-- count: Provide the total number of occurrences found.
-- relevantText: Provide the first occurrence as the main relevant text for initial focus.
+- 'occurrences': Provide an array of the EXACT, verbatim text snippets for every single instance of the issue.
+- 'count': Provide the total number of occurrences found.
+- 'relevantText': Provide the first occurrence as the main relevant text for initial focus.
 
-If no specific text is relevant (e.g., a missing section), relevantText should contain a sentence from the document that is closest to where the missing item should be, occurrences should be an empty array, and count should be 0.
+If no specific text is relevant (e.g., a missing section), 'relevantText' should contain a sentence from the document that is closest to where the missing item should be, 'occurrences' should be an empty array, and 'count' should be 0.
 
 **Document to Analyze:**
 \`\`\`
